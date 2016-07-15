@@ -25,27 +25,37 @@ def read_ignore_list(file):
 # TODO: Add dry run
 @click.command()
 @click.argument('directory')
-@click.option('--delete', is_flag=True)
-@click.option('-n', '--dry-run', is_flag=True)
-@click.option('--ignore-list', type=click.File('r'))
+@click.option('--delete', is_flag=True,
+              help='Delete all .bit_check files.')
+@click.option('-n', '--dry-run', is_flag=True,
+              help='Run without making any changes.')
+@click.option('--ignore-list', type=click.File('r'),
+              help='List of files and folders to ignore. Similar syntax to '
+                   '.gitignore files. "-" can be used to read from stdin.')
 @click.option('-q', '--quiet', 'logging', flag_value=Logging.quiet,
-              help="")
+              help='Turn off all output except for hash errors.')
 @click.option('-v', '--verbose', 'logging', flag_value=Logging.verbose,
-              help="")
+              help='Display all files that are scanned, even if they haven\'t'
+                   ' changed')
 @click.option('--verify', default=False, is_flag=True,
-              help="Verify hashes without updating.")
+              help='Verify hashes without updating.')
 def main(directory, delete, dry_run, ignore_list, verify, logging):
     """
-    Runs rotten_bits. It checks to something.
-
-    directory argument.
+    Given a directory, it calculates the sha1 hash of every file and stores
+    it. Once stored, subsequent checks will see if the hash has changed,
+    detecting bit rot.
 
     Status codes:
-    'E'     error, md5 mismatch
-    'a'     add to index
-    'u'     update md5
-    ' '     not modified (with verbose)
-    '?'     could not read file
+
+        'E'     error, sha1 mismatch
+
+        'a'     add to index
+
+        'u'     update sha1
+
+        ' '     not modified (with verbose)
+
+        '?'     could not read file (permission denied or file no longer exists)
     """
 
     ignore_list = read_ignore_list(ignore_list)
@@ -104,6 +114,8 @@ def main(directory, delete, dry_run, ignore_list, verify, logging):
                     just_verify=verify, ignore=ignore_list, dry_run=dry_run)
 
     vprint("", Logging.normal)
+    if dry_run:
+        click.echo('** DRY-RUN **')
     vprint(
         '{} files scanned, {} new, {} updated, {} missing, {} errors.'.format(
         added_files + update_files + nothing_files + hash_error_files,
