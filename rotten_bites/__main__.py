@@ -3,7 +3,7 @@ import os
 
 import click
 import pathspec
-import rotten_bits
+import rotten_bites
 
 
 class Logging(IntEnum):
@@ -22,7 +22,6 @@ def read_ignore_list(file):
 
         yield line
 
-# TODO: Add dry run
 @click.command()
 @click.argument('directory')
 @click.option('--delete', is_flag=True,
@@ -105,13 +104,13 @@ def main(directory, delete, dry_run, ignore_list, verify, logging):
         vprint("d  {}".format(os.path.join(file.path, file.name)), Logging.normal)
 
     if delete:
-        rotten_bits.delete_check_files(directory)
+        rotten_bites.delete_check_files(directory)
         return
 
-    rotten_bits.run(directory, added_cb=added_cb, updated_cb=updated_cb,
-                    nothing_cb=nothing_cb, file_error_cb=file_error_cb,
-                    hash_error_cb=hash_error_cb, missing_cb=missing_cb,
-                    just_verify=verify, ignore=ignore_list, dry_run=dry_run)
+    rotten_bites.run(directory, added_cb=added_cb, updated_cb=updated_cb,
+                     nothing_cb=nothing_cb, file_error_cb=file_error_cb,
+                     hash_error_cb=hash_error_cb, missing_cb=missing_cb,
+                     just_verify=verify, ignore=ignore_list, dry_run=dry_run)
 
     vprint("", Logging.normal)
     if dry_run:
