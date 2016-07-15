@@ -2,7 +2,6 @@ from enum import IntEnum
 import os
 
 import click
-import pathspec
 import rotten_bites
 
 
@@ -13,7 +12,7 @@ class Logging(IntEnum):
 
 
 def read_ignore_list(file):
-    for line in (file or []):
+    for line in file or []:
         line = line.strip()
 
         # Ignore empty lines and comments
@@ -21,6 +20,7 @@ def read_ignore_list(file):
             continue
 
         yield line
+
 
 @click.command()
 @click.argument('directory')
@@ -54,7 +54,8 @@ def main(directory, delete, dry_run, ignore_list, verify, logging):
 
         ' '     not modified (with verbose)
 
-        '?'     could not read file (permission denied or file no longer exists)
+        '?'     could not read file (permission denied or file no longer
+                exists)
     """
 
     ignore_list = read_ignore_list(ignore_list)
@@ -74,19 +75,22 @@ def main(directory, delete, dry_run, ignore_list, verify, logging):
         nonlocal added_files
 
         added_files += 1
-        vprint("a  {}".format(os.path.join(file.path, file.name)), Logging.normal)
+        vprint("a  {}".format(os.path.join(file.path, file.name)),
+               Logging.normal)
 
     def updated_cb(file):
         nonlocal update_files
 
         update_files += 1
-        vprint("u  {}".format(os.path.join(file.path, file.name)), Logging.normal)
+        vprint("u  {}".format(os.path.join(file.path, file.name)),
+               Logging.normal)
 
     def nothing_cb(file):
         nonlocal nothing_files
 
         nothing_files += 1
-        vprint("   {}".format(os.path.join(file.path, file.name)), Logging.verbose)
+        vprint("   {}".format(os.path.join(file.path, file.name)),
+               Logging.verbose)
 
     def file_error_cb(path, file, error):
         vprint("?  {}".format(os.path.join(path, file)), Logging.normal)
@@ -95,13 +99,15 @@ def main(directory, delete, dry_run, ignore_list, verify, logging):
         nonlocal hash_error_files
 
         hash_error_files += 1
-        vprint("E  {}".format(os.path.join(old_file.path, old_file.name)), Logging.quiet)
+        vprint("E  {}".format(os.path.join(old_file.path, old_file.name)),
+               Logging.quiet)
 
     def missing_cb(file):
         nonlocal missing_files
 
         missing_files += 1
-        vprint("d  {}".format(os.path.join(file.path, file.name)), Logging.normal)
+        vprint("d  {}".format(os.path.join(file.path, file.name)),
+               Logging.normal)
 
     if delete:
         rotten_bites.delete_check_files(directory)
@@ -117,8 +123,8 @@ def main(directory, delete, dry_run, ignore_list, verify, logging):
         click.echo('** DRY-RUN **')
     vprint(
         '{} files scanned, {} new, {} updated, {} missing, {} errors.'.format(
-        added_files + update_files + nothing_files + hash_error_files,
-        added_files, update_files, missing_files, hash_error_files),
+            added_files + update_files + nothing_files + hash_error_files,
+            added_files, update_files, missing_files, hash_error_files),
         Logging.normal)
 
 if __name__ == '__main__':

@@ -19,20 +19,20 @@ class Result(Enum):
 
 
 class File():
-    def __init__(self, name, path, mtime, hash=None):
+    def __init__(self, name, path, mtime, hash_value=None):
         self.name = name
         self.path = path
         self.mtime = int(mtime)
-        self.hash = hash or self.rehash()
+        self.hash = hash_value or self.rehash()
 
     @staticmethod
-    def from_JSON(path, obj):
+    def from_json(path, obj):
         return {k: File(k, path, v[0], v[1]) for k, v in obj.items()}
 
     def rehash(self):
         return hash_func(os.path.join(self.path, self.name))
 
-    def to_JSON(self):
+    def to_json(self):
         return [self.mtime, self.hash]
 
     def __repr__(self):
@@ -62,7 +62,7 @@ def walk_dir(directory, ignore=None, follow_links=False):
         yield path, files
 
 
-def walk_files(directory, files, ignore, follow_links=False):
+def walk_files(directory, files, follow_links=False):
     stat = os.lstat if follow_links else os.stat
 
     for file in files:
@@ -82,14 +82,15 @@ def walk_files(directory, files, ignore, follow_links=False):
 def read_bitcheck(path):
     try:
         with open(os.path.join(path, CHECK_FILE)) as f:
-            return json.load(f, object_hook=lambda obj: File.from_JSON(path, obj))
+            return json.load(
+                f, object_hook=lambda obj: File.from_json(path, obj))
     except FileNotFoundError:
         return {}
 
 
 def save_bitcheck(path, data):
     with open(os.path.join(path, CHECK_FILE), 'w') as f:
-        json.dump(data, f, sort_keys=True, default=lambda x: x.to_JSON())
+        json.dump(data, f, sort_keys=True, default=lambda x: x.to_json())
 
 
 def compare_files(old_file, new_file):
@@ -129,7 +130,7 @@ def run(directory, added_cb=lambda x: x, updated_cb=lambda x: x,
     for path, files in walk_dir(directory, ignore):
         data = read_bitcheck(path)
 
-        for file, stat, error in walk_files(path, files, ignore):
+        for file, stat, error in walk_files(path, files):
             if error:
                 file_error_cb(path, file, error)
                 continue
@@ -153,7 +154,7 @@ def run(directory, added_cb=lambda x: x, updated_cb=lambda x: x,
             elif result == Result.error:
                 hash_error_cb(old_file, new_file)
 
-        for missing in (set(data.keys()) - set(files)):
+        for missing in set(data.keys()) - set(files):
             missing_cb(data.pop(missing))
 
         # TODO: What happens if you scan a file and then later ignore it?
