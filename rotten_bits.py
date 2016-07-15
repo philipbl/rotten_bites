@@ -5,6 +5,8 @@ import os
 import os.path
 from enum import Enum
 
+import pathspec
+
 DEFAULT_CHUNK_SIZE = 16384
 CHECK_FILE = ".bit_check"
 
@@ -50,26 +52,31 @@ def hash_func(path, chunk_size=DEFAULT_CHUNK_SIZE):
 
 def walk_dir(directory, ignore=None, follow_links=False):
     for path, _, files in os.walk(directory, followlinks=follow_links):
+
+        if ignore is not None:
+            files = ignore.match_files(
+                (os.path.join(path, f) for f in files))
+            files = (os.path.basename(f) for f in files)
+            files = sorted(files)
+
         yield path, files
 
 
-def walk_files(directory, files, follow_links=False):
+def walk_files(directory, files, ignore, follow_links=False):
     stat = os.lstat if follow_links else os.stat
 
-    for f in files:
-        file_path = os.path.join(directory, f)
-
+    for file in files:
         try:
-            st = stat(file_path)
+            st = stat(os.path.join(directory, file))
         except OSError as e:
             if e.errno in [errno.EACCES, errno.ENOENT]:
                 # Either we don't have access to the file or it doesn't exist
                 # anymore
-                yield f, None, e
+                yield file, None, e
             else:
                 raise
 
-        yield f, st, None
+        yield file, st, None
 
 
 def read_bitcheck(path):
@@ -82,7 +89,7 @@ def read_bitcheck(path):
 
 def save_bitcheck(path, data):
     with open(os.path.join(path, CHECK_FILE), 'w') as f:
-        json.dump(data, f, default=lambda x: x.to_JSON())
+        json.dump(data, f, sort_keys=True, default=lambda x: x.to_JSON())
 
 
 def compare_files(old_file, new_file):
@@ -100,21 +107,29 @@ def compare_files(old_file, new_file):
         return Result.nothing
 
 
+def convert_ignore_list(lst):
+    yield '*'  # Accept everything
+    yield '!*{}'.format(CHECK_FILE)  # Ignore my files
+
+    for line in lst:
+        if line[0] == '!':
+            yield line[1:]
+        else:
+            yield '!{}'.format(line)
+
+
 def run(directory, added_cb=lambda x: x, updated_cb=lambda x: x,
         nothing_cb=lambda x: x, file_error_cb=lambda x: x,
-        hash_error_cb=lambda x: x, deleted_cb=lambda x: x, ignore=None,
-        just_verify=False):
+        hash_error_cb=lambda x: x, missing_cb=lambda x: x, ignore=None,
+        just_verify=False, dry_run=False):
 
-    ignore = ignore or set()
-    ignore.add(CHECK_FILE)
+    ignore = convert_ignore_list(ignore or [])
+    ignore = pathspec.PathSpec.from_lines('gitignore', ignore)
 
-    for path, files in walk_dir(directory):
+    for path, files in walk_dir(directory, ignore):
         data = read_bitcheck(path)
 
-        for file, stat, error in walk_files(path, files):
-            if file in ignore:
-                continue
-
+        for file, stat, error in walk_files(path, files, ignore):
             if error:
                 file_error_cb(path, file, error)
                 continue
@@ -138,13 +153,14 @@ def run(directory, added_cb=lambda x: x, updated_cb=lambda x: x,
             elif result == Result.error:
                 hash_error_cb(old_file, new_file)
 
-        for removed in (set(data.keys()) - set(files)):
-            removed_cb(data.pop(removed))
+        for missing in (set(data.keys()) - set(files)):
+            missing_cb(data.pop(missing))
 
         # TODO: What happens if you scan a file and then later ignore it?
         # It should be removed from the list!
 
-        save_bitcheck(path, data)
+        if not dry_run:
+            save_bitcheck(path, data)
 
 
 def delete_check_files(directory):

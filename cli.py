@@ -12,9 +12,21 @@ class Logging(IntEnum):
     verbose = 3
 
 
+def read_ignore_list(file):
+    for line in (file or []):
+        line = line.strip()
+
+        # Ignore empty lines and comments
+        if line == '' or line[0] == '#':
+            continue
+
+        yield line
+
+# TODO: Add dry run
 @click.command()
-@click.argument('directory', default='.')
-@click.option('--delete', default=False, is_flag=True)
+@click.argument('directory')
+@click.option('--delete', is_flag=True)
+@click.option('-n', '--dry-run', is_flag=True)
 @click.option('--ignore-list', type=click.File('r'))
 @click.option('-q', '--quiet', 'logging', flag_value=Logging.quiet,
               help="")
@@ -22,7 +34,7 @@ class Logging(IntEnum):
               help="")
 @click.option('--verify', default=False, is_flag=True,
               help="Verify hashes without updating.")
-def main(directory, delete, ignore_list, verify, logging):
+def main(directory, delete, dry_run, ignore_list, verify, logging):
     """
     Runs rotten_bits. It checks to something.
 
@@ -36,20 +48,13 @@ def main(directory, delete, ignore_list, verify, logging):
     '?'     could not read file
     """
 
-    spec = pathspec.PathSpec.from_lines(pathspec.GitIgnorePattern, ignore_list or [])
-
-    print(spec)
-    exit()
-
+    ignore_list = read_ignore_list(ignore_list)
     logging = logging or Logging.normal
     added_files = 0
     update_files = 0
     nothing_files = 0
     hash_error_files = 0
-    deleted_files = 0
-
-    print(ignore_list)
-    exit()
+    missing_files = 0
 
     def vprint(msg, log_level):
         # print(log_level, logging)
@@ -75,18 +80,18 @@ def main(directory, delete, ignore_list, verify, logging):
         vprint("   {}".format(os.path.join(file.path, file.name)), Logging.verbose)
 
     def file_error_cb(path, file, error):
-        vprint("?  {}".format(os.path.join(file.path, file.name)), Logging.normal)
+        vprint("?  {}".format(os.path.join(path, file)), Logging.normal)
 
     def hash_error_cb(old_file, new_file):
         nonlocal hash_error_files
 
         hash_error_files += 1
-        vprint("E  {}".format(os.path.join(old_file.path, old_file.name)), Logging.normal)
+        vprint("E  {}".format(os.path.join(old_file.path, old_file.name)), Logging.quiet)
 
-    def deleted_cb(file):
-        nonlocal deleted_files
+    def missing_cb(file):
+        nonlocal missing_files
 
-        deleted_files += 1
+        missing_files += 1
         vprint("d  {}".format(os.path.join(file.path, file.name)), Logging.normal)
 
     if delete:
@@ -95,14 +100,14 @@ def main(directory, delete, ignore_list, verify, logging):
 
     rotten_bits.run(directory, added_cb=added_cb, updated_cb=updated_cb,
                     nothing_cb=nothing_cb, file_error_cb=file_error_cb,
-                    hash_error_cb=hash_error_cb, deleted_cb=deleted_cb,
-                    just_verify=verify, ignore=ignore_list)
+                    hash_error_cb=hash_error_cb, missing_cb=missing_cb,
+                    just_verify=verify, ignore=ignore_list, dry_run=dry_run)
 
     vprint("", Logging.normal)
     vprint(
         '{} files scanned, {} new, {} updated, {} missing, {} errors.'.format(
         added_files + update_files + nothing_files + hash_error_files,
-        added_files, update_files, deleted_files, hash_error_files),
+        added_files, update_files, missing_files, hash_error_files),
         Logging.normal)
 
 if __name__ == '__main__':
