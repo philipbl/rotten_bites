@@ -22,7 +22,7 @@ class File():
     def __init__(self, name, path, mtime, hash_value=None):
         self.name = name
         self.path = path
-        self.mtime = int(mtime)
+        self.mtime = mtime
         self.hash = hash_value or self.rehash()
 
     @staticmethod
@@ -35,7 +35,7 @@ class File():
     def to_json(self):
         return [self.mtime, self.hash]
 
-    def __repr__(self):
+    def __repr__(self):  # pragma: no cover
         return "<File name:{}, path:{}, mtime:{}, hash:{}".format(
             self.name, self.path, self.mtime, self.hash)
 
@@ -62,8 +62,13 @@ def walk_dir(directory, ignore=None, follow_links=False):
         yield path, files
 
 
+def get_stat(follow_links=False):
+    func = os.lstat if follow_links else os.stat
+    return func
+
+
 def walk_files(directory, files, follow_links=False):
-    stat = os.lstat if follow_links else os.stat
+    stat = get_stat(follow_links)
 
     for file in files:
         try:
@@ -73,6 +78,7 @@ def walk_files(directory, files, follow_links=False):
                 # Either we don't have access to the file or it doesn't exist
                 # anymore
                 yield file, None, e
+                continue
             else:
                 raise
 
@@ -84,7 +90,7 @@ def read_bitcheck(path):
         with open(os.path.join(path, CHECK_FILE)) as f:
             return json.load(
                 f, object_hook=lambda obj: File.from_json(path, obj))
-    except FileNotFoundError:
+    except (FileNotFoundError, json.decoder.JSONDecodeError):
         return {}
 
 
@@ -120,9 +126,9 @@ def convert_ignore_list(lst):
 
 
 def run(directory, added_cb=lambda x: x, updated_cb=lambda x: x,
-        nothing_cb=lambda x: x, file_error_cb=lambda x: x,
-        hash_error_cb=lambda x: x, missing_cb=lambda x: x, ignore=None,
-        just_verify=False, dry_run=False):
+        nothing_cb=lambda x: x, file_error_cb=lambda p, f, e: p,
+        hash_error_cb=lambda old, new: old, missing_cb=lambda x: x,
+        ignore=None, just_verify=False, dry_run=False):
 
     ignore = convert_ignore_list(ignore or [])
     ignore = pathspec.PathSpec.from_lines('gitignore', ignore)
