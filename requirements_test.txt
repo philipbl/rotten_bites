@@ -1,0 +1,17 @@
+click==6.6
+extras==1.0.0
+fixtures==3.0.0
+flake8==2.6.2
+linecache2==1.0.0
+mccabe==0.5.0
+mox3==0.17.0
+pathspec==0.4.0
+pbr==1.10.0
+pycodestyle==2.0.0
+https://github.com/jmcgeheeiv/pyfakefs/archive/master.zip
+pyflakes==1.2.3
+python-mimeparse==1.5.2
+six==1.10.0
+testtools==2.2.0
+traceback2==1.4.0
+unittest2==1.1.0
