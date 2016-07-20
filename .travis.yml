@@ -12,6 +12,7 @@ install:
 script:
   - "flake8 rotten_bites"
   - "pydocstyle rotten_bites"
+  - "pylint rotten_bites"
   - "py.test -v --cov rotten_bites"
 after_success:
     - coveralls

@@ -257,9 +257,18 @@ class TestRottenBites(fake_filesystem_unittest.TestCase):
             "!file3"
         ]
 
+        files = [
+            "file1",
+            "foobar",
+            "file2",
+            "file3",
+            "file22"
+        ]
+
         new_ignore_list = rotten_bites.convert_ignore_list(ignore_list)
-        self.assertEqual(list(new_ignore_list),
-                         ["*", "!*.bit_check", "!file1", "!file2", "file3"])
+
+        self.assertEqual(sorted(list(new_ignore_list.match_files(files))),
+                         sorted(["foobar", "file3", "file22"]))
 
     def test_run(self):
         """

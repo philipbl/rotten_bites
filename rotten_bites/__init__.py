@@ -1,12 +1,12 @@
 """Utility for detecting if bit rot in files."""
 import errno
 import hashlib
-import json
 import os
 import os.path
 from enum import Enum
 
 try:
+    import json
     from json.decoder import JSONDecodeError  # 3.5
 except ImportError:  # pragma: no cover
     JSONDecodeError = ValueError  # 3.4
@@ -69,11 +69,12 @@ class File():
 def hash_func(path, chunk_size=DEFAULT_CHUNK_SIZE):
     """Calculate the hash of a given file."""
     digest = hashlib.sha1()
-    with open(path, 'rb') as f:
-        d = f.read(chunk_size)
-        while d:
-            digest.update(d)
-            d = f.read(chunk_size)
+    # TODO: Catch file not found!
+    with open(path, 'rb') as file:
+        data = file.read(chunk_size)
+        while data:
+            digest.update(data)
+            data = file.read(chunk_size)
     return digest.hexdigest()
 
 
@@ -107,33 +108,33 @@ def walk_files(directory, files, follow_links=False):
 
     for file in files:
         try:
-            st = stat(os.path.join(directory, file))
-        except OSError as e:
-            if e.errno in [errno.EACCES, errno.ENOENT]:
+            stat_data = stat(os.path.join(directory, file))
+        except OSError as exception:
+            if exception.errno in [errno.EACCES, errno.ENOENT]:
                 # Either we don't have access to the file or it doesn't exist
                 # anymore
-                yield file, None, e
+                yield file, None, exception
                 continue
             else:
                 raise
 
-        yield file, st, None
+        yield file, stat_data, None
 
 
 def read_bitcheck(path):
     """Read file that contains file hash information."""
     try:
-        with open(os.path.join(path, CHECK_FILE)) as f:
+        with open(os.path.join(path, CHECK_FILE)) as file:
             return json.load(
-                f, object_hook=lambda obj: File.from_json(path, obj))
+                file, object_hook=lambda obj: File.from_json(path, obj))
     except (FileNotFoundError, JSONDecodeError):
         return {}
 
 
 def save_bitcheck(path, data):
     """Save file that contains file hash information."""
-    with open(os.path.join(path, CHECK_FILE), 'w') as f:
-        json.dump(data, f, sort_keys=True, default=lambda x: x.to_json())
+    with open(os.path.join(path, CHECK_FILE), 'w') as file:
+        json.dump(data, file, sort_keys=True, default=lambda x: x.to_json())
 
 
 def compare_files(old_file, new_file):
@@ -163,23 +164,27 @@ def compare_files(old_file, new_file):
 
 def convert_ignore_list(lst):
     """Convert an ignore list to an accept list."""
-    yield '*'  # Accept everything
-    yield '!*{}'.format(CHECK_FILE)  # Ignore my files
+    def create_ignore_list():
+        """Generator for creating ignore list."""
+        yield '*'  # Accept everything
+        yield '!*{}'.format(CHECK_FILE)  # Ignore my files
 
-    for line in lst:
-        if line[0] == '!':
-            yield line[1:]
-        else:
-            yield '!{}'.format(line)
+        for line in lst:
+            if line[0] == '!':
+                yield line[1:]
+            else:
+                yield '!{}'.format(line)
+
+    return pathspec.PathSpec.from_lines('gitignore', create_ignore_list())
 
 
+# pylint: disable=too-many-arguments,too-many-locals
 def run(directory, added_cb=lambda x: x, updated_cb=lambda x: x,
         nothing_cb=lambda x: x, file_error_cb=lambda p, f, e: p,
         hash_error_cb=lambda old, new: old, missing_cb=lambda x: x,
         ignore=None, just_verify=False, dry_run=False):
     """Run rotten bits, checking for bit errors."""
     ignore = convert_ignore_list(ignore or [])
-    ignore = pathspec.PathSpec.from_lines('gitignore', ignore)
 
     for path, files in walk_dir(directory, ignore):
         data = read_bitcheck(path)

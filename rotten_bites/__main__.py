@@ -1,4 +1,5 @@
 """CLI portion of Rotten Bites."""
+# pylint: disable=no-value-for-parameter
 from enum import IntEnum
 import os
 
@@ -47,6 +48,7 @@ def read_ignore_list(file):
                    ' changed')
 @click.option('--verify', default=False, is_flag=True,
               help='Verify hashes without updating.')
+# pylint: disable=too-many-arguments,too-many-locals
 def main(directory, delete, dry_run, ignore_list, verify, logging):
     """
     Run CLI.
@@ -77,11 +79,12 @@ def main(directory, delete, dry_run, ignore_list, verify, logging):
     missing_files = 0
 
     def vprint(msg, log_level):
-        # print(log_level, logging)
+        """Prints depending on the log level."""
         if logging >= log_level:
             click.echo(msg)
 
     def added_cb(file):
+        """Prints when file is added."""
         nonlocal added_files
 
         added_files += 1
@@ -89,6 +92,7 @@ def main(directory, delete, dry_run, ignore_list, verify, logging):
                Logging.normal)
 
     def updated_cb(file):
+        """Prints when file is updated."""
         nonlocal update_files
 
         update_files += 1
@@ -96,6 +100,7 @@ def main(directory, delete, dry_run, ignore_list, verify, logging):
                Logging.normal)
 
     def nothing_cb(file):
+        """Prints when nothing happens to a file."""
         nonlocal nothing_files
 
         nothing_files += 1
@@ -103,9 +108,11 @@ def main(directory, delete, dry_run, ignore_list, verify, logging):
                Logging.verbose)
 
     def file_error_cb(path, file, error):
+        """Prints when file has an error."""
         vprint("?  {}".format(os.path.join(path, file)), Logging.normal)
 
     def hash_error_cb(old_file, new_file):
+        """Prints when file has an hash error."""
         nonlocal hash_error_files
 
         hash_error_files += 1
@@ -113,6 +120,7 @@ def main(directory, delete, dry_run, ignore_list, verify, logging):
                Logging.quiet)
 
     def missing_cb(file):
+        """Prints when file is missing."""
         nonlocal missing_files
 
         missing_files += 1
