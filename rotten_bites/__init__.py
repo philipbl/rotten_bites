@@ -52,9 +52,18 @@ class File():
         """Convert json object to File objects."""
         return {k: File(k, path, v[0], v[1]) for k, v in obj.items()}
 
-    def rehash(self):
+    def rehash(self, chunk_size=DEFAULT_CHUNK_SIZE):
         """Calculate the hash of this file."""
-        return hash_func(os.path.join(self.path, self.name))
+        path = os.path.join(self.path, self.name)
+        digest = hashlib.sha1()
+
+        # TODO: Catch file not found!
+        with open(path, 'rb') as file:
+            data = file.read(chunk_size)
+            while data:
+                digest.update(data)
+                data = file.read(chunk_size)
+        return digest.hexdigest()
 
     def to_json(self):
         """Convert File object to json."""
@@ -64,19 +73,6 @@ class File():
         """String representation of File."""
         return "<File name:{}, path:{}, mtime:{}, hash:{}".format(
             self.name, self.path, self.mtime, self.hash)
-
-
-def hash_func(path, chunk_size=DEFAULT_CHUNK_SIZE):
-    """Calculate the hash of a given file."""
-    digest = hashlib.sha1()
-    # TODO: Catch file not found!
-    with open(path, 'rb') as file:
-        data = file.read(chunk_size)
-        while data:
-            digest.update(data)
-            data = file.read(chunk_size)
-    return digest.hexdigest()
-
 
 def walk_dir(directory, ignore=None, follow_links=False):
     """

@@ -36,6 +36,14 @@ class TestRottenBites(fake_filesystem_unittest.TestCase):
 
         self.assertEqual(file.to_json(), [mtime, self.file_1_hash])
 
+    def test_File_no_file(self):
+        name = "file_1.txt"
+        path = ""
+        mtime = 1000
+
+        with self.assertRaises(FileNotFoundError):
+            file = rotten_bites.File(name, path, mtime)
+
     def test_File_from_json(self):
         self.fs.CreateFile('file_1.txt', contents="file_1\n")
 
@@ -53,12 +61,6 @@ class TestRottenBites(fake_filesystem_unittest.TestCase):
         self.assertEqual(file.path, path)
         self.assertEqual(file.mtime, mtime)
         self.assertEqual(file.hash, self.file_1_hash)
-
-    def test_hash_func(self):
-        self.fs.CreateFile('file_1.txt', contents="file_1\n")
-
-        result = rotten_bites.hash_func('file_1.txt')
-        self.assertEqual(result, self.file_1_hash)
 
     def test_walk_dir(self):
         self.fs.CreateFile('file_1.txt', contents="file_1\n")
