@@ -1,3 +1,4 @@
+"""CLI portion of Rotten Bites."""
 from enum import IntEnum
 import os
 
@@ -6,12 +7,19 @@ import rotten_bites
 
 
 class Logging(IntEnum):
+    """Use to determine what gets printed."""
+
     quiet = 1
     normal = 2
     verbose = 3
 
 
 def read_ignore_list(file):
+    """
+    Convert file to a list of ignored files/folders.
+
+    Takes care of removing white spaces and comments.
+    """
     for line in file or []:
         line = line.strip()
 
@@ -41,6 +49,8 @@ def read_ignore_list(file):
               help='Verify hashes without updating.')
 def main(directory, delete, dry_run, ignore_list, verify, logging):
     """
+    Run CLI.
+
     Given a directory, rotten bites calculates the sha1 hash of every file
     and stores it in .bit_check files. Once stored, subsequent checks will see
     if the hash has changed, detecting bit rot.
@@ -58,7 +68,6 @@ def main(directory, delete, dry_run, ignore_list, verify, logging):
         '?'     could not read file (permission denied or file no longer
                 exists)
     """
-
     ignore_list = read_ignore_list(ignore_list)
     logging = logging or Logging.normal
     added_files = 0

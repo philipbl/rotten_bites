@@ -11,6 +11,7 @@ install:
   - "pip install -r requirements_test.txt"
 script:
   - "flake8 rotten_bites"
+  - "pydocstyle rotten_bites"
   - "py.test -v --cov rotten_bites"
 after_success:
     - coveralls
