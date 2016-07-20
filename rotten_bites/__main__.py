@@ -27,7 +27,8 @@ def read_ignore_list(file):
 @click.option('--delete', is_flag=True,
               help='Delete all .bit_check files.')
 @click.option('-n', '--dry-run', is_flag=True,
-              help='Run without making any changes.')
+              help='Run without making any changes. No .bit_check files are '
+                   'created or updated')
 @click.option('--ignore-list', type=click.File('r'),
               help='List of files and folders to ignore. Similar syntax to '
                    '.gitignore files. "-" can be used to read from stdin.')
@@ -40,9 +41,9 @@ def read_ignore_list(file):
               help='Verify hashes without updating.')
 def main(directory, delete, dry_run, ignore_list, verify, logging):
     """
-    Given a directory, it calculates the sha1 hash of every file and stores
-    it. Once stored, subsequent checks will see if the hash has changed,
-    detecting bit rot.
+    Given a directory, rotten bites calculates the sha1 hash of every file
+    and stores it in .bit_check files. Once stored, subsequent checks will see
+    if the hash has changed, detecting bit rot.
 
     Status codes:
 
@@ -52,7 +53,7 @@ def main(directory, delete, dry_run, ignore_list, verify, logging):
 
         'u'     update sha1
 
-        ' '     not modified (with verbose)
+        ' '     not modified (shown only with verbose)
 
         '?'     could not read file (permission denied or file no longer
                 exists)
