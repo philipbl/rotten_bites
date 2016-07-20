@@ -7,7 +7,7 @@ from enum import Enum
 
 try:
     from json.decoder import JSONDecodeError  # 3.5
-except ImportError:
+except ImportError:  # pragma: no cover
     JSONDecodeError = ValueError  # 3.4
 
 import pathspec
