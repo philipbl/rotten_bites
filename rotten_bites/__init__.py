@@ -5,6 +5,11 @@ import os
 import os.path
 from enum import Enum
 
+try:
+    from json.decoder import JSONDecodeError  # 3.5
+except ImportError:
+    JSONDecodeError = ValueError  # 3.4
+
 import pathspec
 
 __version__ = '1.0'
@@ -92,7 +97,7 @@ def read_bitcheck(path):
         with open(os.path.join(path, CHECK_FILE)) as f:
             return json.load(
                 f, object_hook=lambda obj: File.from_json(path, obj))
-    except (FileNotFoundError, json.decoder.JSONDecodeError):
+    except (FileNotFoundError, JSONDecodeError):
         return {}
 
 
