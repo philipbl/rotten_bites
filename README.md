@@ -2,11 +2,11 @@
 
 [![Build Status](https://travis-ci.org/philipbl/rotten_bites.svg?branch=master)](https://travis-ci.org/philipbl/rotten_bites) [![Coverage Status](https://coveralls.io/repos/github/philipbl/rotten_bites/badge.svg?branch=master)](https://coveralls.io/github/philipbl/rotten_bites?branch=master)
 
-A small utility for checking for [bit rot][bit_rot]. This project is heavily influenced by [`chkbit`][chkbit] and [`bitrot`][bitrot]. Both projects had things I liked about them and other things that I didn't. I took what I liked and made something myself.
+A small utility for checking for [bit rot][bit_rot]. This project is heavily influenced by [chkbit][chkbit] and [bitrot][bitrot]. Both projects had things I liked about them and other things that I didn't. I took what I liked and made something myself.
 
 The focus of Rotten Bites is scalability and speed. To achieve this, small files (`.bit_check`) are placed in every directory. I know, no one wants a ["bunch of turdy files sprinkled all over your hard drive"][atp], but in my opinion it is the best way to allow for flexibility (folders can be moved around without any problem because all paths are relative to that directory) and scalability (having one central database with all files stored does not scale well).
 
-There are two components to Rotten Bites: the CLI and library. I designed Rotten Bites to be callback based so it makes it easy to extend. See the CLI (rotten_bites/__main__.py) and rot_check.py, for examples.
+There are two components to Rotten Bites: the CLI and library. I designed Rotten Bites to be callback based so it makes it easy to extend. See the CLI (`rotten_bites/__main__.py`) and rot_check.py, for examples.
 
 ## Install
 
