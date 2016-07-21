@@ -57,7 +57,6 @@ class File():
         path = os.path.join(self.path, self.name)
         digest = hashlib.sha1()
 
-        # TODO: Catch file not found!
         with open(path, 'rb') as file:
             data = file.read(chunk_size)
             while data:
@@ -73,6 +72,7 @@ class File():
         """String representation of File."""
         return "<File name:{}, path:{}, mtime:{}, hash:{}".format(
             self.name, self.path, self.mtime, self.hash)
+
 
 def walk_dir(directory, ignore=None, follow_links=False):
     """
@@ -106,13 +106,10 @@ def walk_files(directory, files, follow_links=False):
         try:
             stat_data = stat(os.path.join(directory, file))
         except OSError as exception:
-            if exception.errno in [errno.EACCES, errno.ENOENT]:
-                # Either we don't have access to the file or it doesn't exist
-                # anymore
-                yield file, None, exception
-                continue
-            else:
-                raise
+            # For some reason we couldn't stat the file. I will look at why
+            # later.
+            yield file, None, exception
+            continue
 
         yield file, stat_data, None
 
@@ -154,8 +151,7 @@ def compare_files(old_file, new_file):
         else:
             return Result.updated
 
-    else:
-        return Result.nothing
+    return Result.nothing
 
 
 def convert_ignore_list(lst):
@@ -174,6 +170,22 @@ def convert_ignore_list(lst):
     return pathspec.PathSpec.from_lines('gitignore', create_ignore_list())
 
 
+# pylint: disable=too-many-arguments
+def handle_error(error, path, file, old_file, file_error_cb, missing_cb):
+    """Deal with file error."""
+    # Check what kind of error it is
+    if error.errno == errno.EACCES:
+        # We don't have access to the file
+        file_error_cb(path, file, error)
+    elif error.errno == errno.ENOENT:
+        # The file was deleted
+        if old_file is not None:
+            missing_cb(old_file)
+    else:
+        # Don't know what else to do with it
+        raise error
+
+
 # pylint: disable=too-many-arguments,too-many-locals
 def run(directory, added_cb=lambda x: x, updated_cb=lambda x: x,
         nothing_cb=lambda x: x, file_error_cb=lambda p, f, e: p,
@@ -186,12 +198,24 @@ def run(directory, added_cb=lambda x: x, updated_cb=lambda x: x,
         data = read_bitcheck(path)
 
         for file, stat, error in walk_files(path, files):
+            old_file = data.get(file)
+
+            # Check if any errors occurred while walking the file
             if error:
-                file_error_cb(path, file, error)
+                handle_error(error, path, file, old_file, file_error_cb,
+                             missing_cb)
                 continue
 
-            new_file = File(file, path, stat.st_mtime)
-            old_file = data.get(file)
+            try:
+                new_file = File(file, path, stat.st_mtime)
+            except FileNotFoundError:
+                # The file was deleted between when the file list was created
+                # and now
+                if old_file is not None:
+                    # We only care about this if the old file existed
+                    missing_cb(old_file)
+                continue
+
             result = compare_files(old_file, new_file)
 
             if result == Result.updated and not just_verify:
@@ -211,9 +235,6 @@ def run(directory, added_cb=lambda x: x, updated_cb=lambda x: x,
 
         for missing in set(data.keys()) - set(files):
             missing_cb(data.pop(missing))
-
-        # TODO: What happens if you scan a file and then later ignore it?
-        # It should be removed from the list!
 
         if not dry_run:
             save_bitcheck(path, data)

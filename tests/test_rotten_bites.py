@@ -272,6 +272,55 @@ class TestRottenBites(fake_filesystem_unittest.TestCase):
         self.assertEqual(sorted(list(new_ignore_list.match_files(files))),
                          sorted(["foobar", "file3", "file22"]))
 
+    def test_handle_error(self):
+        error = OSError("Fake error")
+        path = '.'
+        file = 'file_1.txt'
+        old_file = None
+
+        file_errors = []
+        missing = []
+
+        def file_error_cb(path, file, error):
+            file_errors.append(file)
+
+        def missing_cb(file):
+            missing.append(file)
+
+        # Permission denied
+        error.errno = errno.EACCES
+        rotten_bites.handle_error(error, path, file, old_file, file_error_cb,
+            missing_cb)
+
+        self.assertEqual(len(file_errors), 1)
+        self.assertEqual(len(missing), 0)
+        self.assertEqual(file_errors, ['file_1.txt'])
+
+        # Missing new and old file
+        error.errno = errno.ENOENT
+        rotten_bites.handle_error(error, path, file, old_file, file_error_cb,
+            missing_cb)
+
+        self.assertEqual(len(file_errors), 1)
+        self.assertEqual(len(missing), 0)
+
+        # Missing new file
+        old_file = 1  # Something not None
+        error.errno = errno.ENOENT
+        rotten_bites.handle_error(error, path, file, old_file, file_error_cb,
+            missing_cb)
+
+        self.assertEqual(len(file_errors), 1)
+        self.assertEqual(len(missing), 1)
+        self.assertEqual(missing, [1])
+
+        # Some other kind of error
+        error.errno = -1
+
+        with self.assertRaises(OSError):
+            rotten_bites.handle_error(error, path, file, old_file,
+                file_error_cb, missing_cb)
+
     def test_run(self):
         """
         Run without any callbacks passed in.
@@ -419,17 +468,16 @@ class TestRottenBites(fake_filesystem_unittest.TestCase):
         self.assertEqual([f.name for f in missing],
                          ['file_5.txt'])
 
-    def test_run_with_delete(self):
+    def test_run_with_delete_before(self):
         self.fs.CreateFile('file_1.txt', contents="file_1\n")
         self.fs.CreateFile('file_2.txt', contents="file_2\n")
         self.fs.CreateFile('file_3.txt', contents="file_3\n")
 
-        error_list = []
+        missing_list = []
         first = True
 
-        def error_cb(path, file, error):
-            # print(path, file, error)
-            error_list.append((path, file, error))
+        def missing_cb(file):
+            missing_list.append(file)
 
         def added_cb(file):
             nonlocal first
@@ -438,10 +486,66 @@ class TestRottenBites(fake_filesystem_unittest.TestCase):
                 os.remove('file_2.txt')
             first = False
 
-        rotten_bites.run('.', added_cb=added_cb, file_error_cb=error_cb)
+        rotten_bites.run('.', added_cb=added_cb, missing_cb=missing_cb)
 
-        self.assertEqual(len(error_list), 1)
-        self.assertEqual(error_list[0][1], 'file_2.txt')
+        self.assertEqual(len(missing_list), 0)
+
+    def test_run_with_delete_after(self):
+        self.fs.CreateFile('file_1.txt', contents="file_1\n")
+        self.fs.CreateFile('file_2.txt', contents="file_2\n")
+        self.fs.CreateFile('file_3.txt', contents="file_3\n")
+
+        rotten_bites.run('.')
+
+        missing_list = []
+        first = True
+
+        def missing_cb(file):
+            missing_list.append(file.name)
+
+        def nothing_cb(file):
+            nonlocal first
+
+            if first:
+                os.remove('file_2.txt')
+            first = False
+
+        rotten_bites.run('.', nothing_cb=nothing_cb, missing_cb=missing_cb)
+
+        self.assertEqual(len(missing_list), 1)
+        self.assertEqual(missing_list, ['file_2.txt'])
+
+    def test_run_delete_during(self):
+        self.fs.CreateFile('file_1.txt', contents="file_1\n")
+        self.fs.CreateFile('file_2.txt', contents="file_2\n")
+        self.fs.CreateFile('file_3.txt', contents="file_3\n")
+
+        missing_list = []
+
+        def missing_cb(file):
+            missing_list.append(file.name)
+
+        # Check to see what happens before the file has ever been hashed
+        with unittest.mock.patch('rotten_bites.File',
+                                 side_effect=FileNotFoundError()):
+            rotten_bites.run('.', missing_cb=missing_cb)
+            self.assertEqual(len(missing_list), 0)
+
+        # Now hash the file
+        rotten_bites.run('.')
+
+        data = {"file_1.txt": rotten_bites.File("file_1.txt", ".", 1, 1)}
+
+        # Check to see what happens now that the file has been hashed
+        with unittest.mock.patch('rotten_bites.File',
+                                 side_effect=FileNotFoundError()):
+            with unittest.mock.patch('rotten_bites.read_bitcheck',
+                                     return_value=data):
+                rotten_bites.run('.', missing_cb=missing_cb)
+                self.assertEqual(len(missing_list), 1)
+                self.assertEqual(missing_list, ['file_1.txt'])
+
+
 
     def test_run_with_exception(self):
         self.fs.CreateFile('file_1.txt', contents="file_1\n")

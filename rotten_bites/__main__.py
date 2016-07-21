@@ -79,12 +79,12 @@ def main(directory, delete, dry_run, ignore_list, verify, logging):
     missing_files = 0
 
     def vprint(msg, log_level):
-        """Prints depending on the log level."""
+        """Print depending on the log level."""
         if logging >= log_level:
             click.echo(msg)
 
     def added_cb(file):
-        """Prints when file is added."""
+        """Print when file is added."""
         nonlocal added_files
 
         added_files += 1
@@ -92,7 +92,7 @@ def main(directory, delete, dry_run, ignore_list, verify, logging):
                Logging.normal)
 
     def updated_cb(file):
-        """Prints when file is updated."""
+        """Print when file is updated."""
         nonlocal update_files
 
         update_files += 1
@@ -100,7 +100,7 @@ def main(directory, delete, dry_run, ignore_list, verify, logging):
                Logging.normal)
 
     def nothing_cb(file):
-        """Prints when nothing happens to a file."""
+        """Print when nothing happens to a file."""
         nonlocal nothing_files
 
         nothing_files += 1
@@ -108,11 +108,11 @@ def main(directory, delete, dry_run, ignore_list, verify, logging):
                Logging.verbose)
 
     def file_error_cb(path, file, error):
-        """Prints when file has an error."""
+        """Print when file has an error."""
         vprint("?  {}".format(os.path.join(path, file)), Logging.normal)
 
     def hash_error_cb(old_file, new_file):
-        """Prints when file has an hash error."""
+        """Print when file has an hash error."""
         nonlocal hash_error_files
 
         hash_error_files += 1
@@ -120,7 +120,7 @@ def main(directory, delete, dry_run, ignore_list, verify, logging):
                Logging.quiet)
 
     def missing_cb(file):
-        """Prints when file is missing."""
+        """Print when file is missing."""
         nonlocal missing_files
 
         missing_files += 1
