@@ -13,8 +13,6 @@ except ImportError:  # pragma: no cover
 
 import pathspec
 
-__version__ = '1.0'
-
 DEFAULT_CHUNK_SIZE = 16384
 CHECK_FILE = ".bit_check"
 
